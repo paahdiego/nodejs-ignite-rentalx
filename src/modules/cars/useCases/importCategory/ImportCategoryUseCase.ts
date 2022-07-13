@@ -2,6 +2,7 @@ import fs from "fs";
 import { parse } from "csv-parse";
 
 import { ICategoriesRepository } from "../../repositories/ICategoriesRepository";
+import { Category } from "../../models/Category";
 
 interface IImportCategory {
   name: string;
@@ -28,6 +29,7 @@ class ImportCategoryUseCase {
           categories.push({ name, description });
         })
         .on("end", () => {
+          fs.promises.unlink(file.path);
           resolve(categories);
         })
         .on("error", (error) => {
@@ -39,13 +41,19 @@ class ImportCategoryUseCase {
   async execute(file: Express.Multer.File) {
     const categories = await this.loadCategories(file);
 
+    const createdCategories: Category[] = [];
+
     categories.map((category) => {
       const categoryAlreadyExists = this.categoryRepository.findByName(
         category.name
       );
 
-      if (!categoryAlreadyExists) this.categoryRepository.create(category);
+      if (!categoryAlreadyExists) {
+        const createdCategory = this.categoryRepository.create(category);
+        createdCategories.push(createdCategory);
+      }
     });
+    return createdCategories;
   }
 }
 
